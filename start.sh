@@ -14,5 +14,12 @@ vpncmd /SERVER localhost /ADMINHUB:${HUB_NAME} /IN:commands.txt
 /usr/vpnserver/vpnserver stop
 sleep 5
 
+brctl addbr brg0
+brctl addif brg0 ${NIC}
+ip a flush dev ${NIC}
+ip a flush dev tan_vpn0
+ip a add ${IP_ADDRESS} dev brg0
+ip r add default via ${DEFAULT_GATEWAY}
+
 echo "start vpnserver"
 /usr/vpnserver/vpnserver execsvc
