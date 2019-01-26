@@ -1,0 +1,25 @@
+version: '2'
+volumes:
+  vpn_data: {}
+services:
+  vpn-server:
+    image: agarichan/vpn-server
+    environment:
+      HUB_NAME: VPN
+      HUB_PASSWD: HubPassword
+      USER_NAME: User
+      USER_PASSWD: UserPassword
+      VPN_PSK: vpn
+      IP_ADDRESS: 192.168.X.XX
+      DEFAULT_GATEWAY: 192.168.X.XX
+    cap_add:
+    - NET_ADMIN
+    devices:
+    - /dev/net/tun:/dev/net/tun:rwm
+    network_mode: host
+    volumes:
+    - vpn_data:/usr/vpnserver
+    ports:
+    - 500:500/udp
+    - 4500:4500/udp
+    - 5555:5555/tcp

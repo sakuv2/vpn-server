@@ -1,0 +1,6 @@
+ListenerDelete 443
+ListenerDelete 992
+ListenerDelete 1194
+OpenVpnEnable no
+SstpEnable no
+BridgeCreate VPN /DEVICE:vpn0 /TAP:yes
