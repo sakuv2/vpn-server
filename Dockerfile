@@ -1,39 +1,35 @@
-FROM amazonlinux:2017.03
+FROM alpine:3.10 as builder
 
-RUN yum install -y gcc make ncurses-devel openssl-devel readline-devel wget iproute bridge-utils
+RUN mkdir /usr/local/src && apk update && apk add binutils \
+	build-base \
+	readline-dev \
+	openssl-dev \
+	ncurses-dev \
+	git \
+	cmake \
+	zlib zlib-dev &&\
+	apk add gnu-libiconv --update-cache --repository http://dl-cdn.alpinelinux.org/alpine/edge/testing/ --allow-untrusted
 
-ARG SOFTETHER_URL="https://jp.softether-download.com/files/softether/v4.22-9634-beta-2016.11.27-tree/Source_Code/softether-src-v4.22-9634-beta.tar.gz"
+ENV LD_PRELOAD /usr/lib/preloadable_libiconv.so
+WORKDIR /usr/local/src
+RUN git clone https://github.com/SoftEtherVPN/SoftEtherVPN.git
 
-RUN cd / && \
-	mkdir -p softether_vpn && \
-	cd softether_vpn && \
-	wget ${SOFTETHER_URL} && \
-	tar zxvf *.tar.gz && \
-	cd $(tar ztvf *.tar.gz| head -n1 | awk '{print $NF}') && \
-	cp -f src/makefiles/linux_64bit.mak Makefile && \
-	make && \
-	make install && \
-	make clean && \
-	rm -rf /softether_vpn
+WORKDIR /usr/local/src/SoftEtherVPN
 
-COPY batch.txt /tmp/
-RUN cd /tmp && \
-	/usr/vpnserver/vpnserver start && \
-	sleep 5 && \
-	vpncmd /SERVER localhost /ADMINHUB:DEFAULT /IN:batch.txt && \
-	/usr/vpnserver/vpnserver stop
+RUN git submodule update --init --recursive && ./configure && make -C tmp
 
-ENV HUB_NAME="VPN" \
-	HUB_PASSWD="HubPassword" \
-	USER_NAME="User" \
-	USER_PASSWD="UserPassword" \
-	VPN_PSK="vpn" \
-	NIC="eth0" \
-	IP_ADDRES='192.168.0.1' \
-	DEFAULT_GATEWAY='192.168.0.254'
 
-COPY start.sh /tmp/
-
-ENTRYPOINT ["/tmp/start.sh"]
-
-EXPOSE 500/udp 4500/udp 5555
+FROM alpine:3.10
+RUN apk update && apk add readline \
+    openssl &&\
+    apk add gnu-libiconv --update-cache --repository http://dl-cdn.alpinelinux.org/alpine/edge/testing/ --allow-untrusted
+ENV LD_PRELOAD /usr/lib/preloadable_libiconv.so
+ENV LD_LIBRARY_PATH /root
+WORKDIR /root/
+VOLUME /mnt
+RUN ln -s /mnt/vpn_server.config vpn_server.config && \
+	mkdir /mnt/backup.vpn_server.config &&\
+	ln -s /mnt/backup.vpn_server.config backup.vpn_server.config &&\
+	ln -s /mnt/lang.config lang.config
+COPY --from=builder /usr/local/src/SoftEtherVPN/build .
+CMD ["/root/vpnserver", "execsvc"]
